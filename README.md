@@ -2,7 +2,7 @@
 
 a shadowsocksR client and server,just for fun.
 
-Finishing work with [shadowsocksR](github.com/sun8911879/shadowsocksR) golang project.
+Finishing work with [shadowsocksR](https://github.com/sun8911879/shadowsocksR) golang project.
 - client
 - server 
 
