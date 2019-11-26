@@ -5,8 +5,19 @@ import (
 	"log"
 	"net"
 
-	"github.com/10bits/ssr-go/utils"
+	"github.com/10bits/shadowsocksRR-go/utils"
 )
+
+type SSRConn struct {
+	net.Conn
+}
+
+func (conn SSRConn) Read(b []byte) (n int, err error) {
+	return
+}
+func (conn SSRConn) Write(b []byte) (n int, err error) {
+	return
+}
 
 var local_addr = "127.0.0.1:8081"
 var server_addr = "127.0.0.1:8082"

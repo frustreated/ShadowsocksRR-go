@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 )
 
@@ -51,13 +52,23 @@ func Socks5ReadAddr(r *bufio.Reader) (string, error) {
 	}
 	r.ReadByte() //跳过RSV字段，即RSV保留字端，值长度为1个字节。
 	addrtype, _ := r.ReadByte()
-	if addrtype != AtypDomainName {
-		return "", errors.New("not SOCKS5 domain type")
+	var addr []byte
+	switch addrtype {
+	case AtypDomainName:
+		log.Println("domain yes")
+		addrlen, _ := r.ReadByte()   //读取一个字节以得到域名的长度。因为服务器地址类型的长度就是“1”，所以它是IP还是域名我们都能获取到完整的内容。如果能走到这一行代码说明一定是域名，如果没有上面的一行过滤代码我们就还需要考虑IPV4和IPV6的两种情况啦！
+		addr = make([]byte, addrlen) //定义一个和域名长度一样大小的容器。
+		io.ReadFull(r, addr)         //将域名的内容读取出来。
+		break
+	case AtypIPv4:
+		return "", errors.New("SOCKS5 not support ipv4")
+		break
+	case AtypIPv6:
+		return "", errors.New("SOCKS5 not support ipv6")
+		break
+	default:
+		return "", errors.New("SOCKS5 not support type")
 	}
-	addrlen, _ := r.ReadByte()    //读取一个字节以得到域名的长度。因为服务器地址类型的长度就是“1”，所以它是IP还是域名我们都能获取到完整的内容。如果能走到这一行代码说明一定是域名，如果没有上面的一行过滤代码我们就还需要考虑IPV4和IPV6的两种情况啦！
-	addr := make([]byte, addrlen) //定义一个和域名长度一样大小的容器。
-	io.ReadFull(r, addr)          //将域名的内容读取出来。
-
 	var port int16                          //因为端口是有2个字节来表示的，所以我们用int16来定义它的取值范围就OK。
 	binary.Read(r, binary.BigEndian, &port) //读取2个字节，并将读取到的内容赋值给port变量。
 	return fmt.Sprintf("%s:%d", addr, port), nil
