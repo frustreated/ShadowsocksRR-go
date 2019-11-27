@@ -16,4 +16,14 @@ func TestDecodeUrl(t *testing.T) {
 	t.Log("混淆参数:", server.ObfsParam)
 	t.Log("分组:", server.Group)
 	t.Log("备注:", server.Remarks)
+	if server.EncryptMethod != DefaultSSRServer.EncryptMethod {
+		t.Error("test error")
+	}
+	if server.Protocol != DefaultSSRServer.Protocol {
+		t.Error("test error")
+	}
+	if server.Obfs != DefaultSSRServer.Obfs {
+		t.Error("test error")
+	}
+
 }

@@ -3,8 +3,17 @@ package utils
 
 import (
 	"encoding/base64"
+	"net"
 	"net/url"
+	"strconv"
 	"strings"
+
+	SSR "github.com/10bits/shadowsocksR"
+	shadowsocksr "github.com/10bits/shadowsocksR"
+	"github.com/10bits/shadowsocksR/obfs"
+	"github.com/10bits/shadowsocksR/protocol"
+	"github.com/10bits/shadowsocksR/ssr"
+	"github.com/10bits/shadowsocksRR-go/enums"
 )
 
 type SSInfo struct {
@@ -63,4 +72,70 @@ func SSRDecodeUrl(ssr_url string) (ssrserver *SSRServer) {
 		},
 	}
 	return
+}
+
+var DefaultServerAddr = "127.0.0.1:12345"
+var DefaultSSRServer = &SSRServer{
+	Address: DefaultServerAddr,
+	Type:    "ssr",
+	Remarks: "test",
+	Group:   "test",
+	SSInfo: SSInfo{
+		EncryptMethod:   enums.ENUM_ENCRYPT_MAP[enums.ENCRYPT_CHACHA20_IETF],
+		EncryptPassword: "test",
+		SSRInfo: SSRInfo{
+			Protocol:      enums.ENUM_PROTOCOL_MAP[enums.PROTOCOL_AUTH_AES128_MD5],
+			ProtocolParam: "",
+			Obfs:          enums.ENUM_OBFS_MAP[enums.OBFS_HTTP_POST],
+			ObfsParam:     "",
+		},
+	},
+}
+
+func NewSSRUrlQuery(server *SSRServer) *url.URL {
+	u := &url.URL{
+		Scheme: server.Type,
+		Host:   server.Address,
+	}
+	v := u.Query()
+	v.Set("encrypt-method", server.EncryptMethod)
+	v.Set("encrypt-key", server.EncryptPassword)
+	v.Set("obfs", server.Obfs)
+	v.Set("obfs-param", server.ObfsParam)
+	v.Set("protocol", server.Protocol)
+	v.Set("protocol-param", server.ProtocolParam)
+	u.RawQuery = v.Encode()
+	return u
+}
+func NewSSRTcpConn(u *url.URL, conn net.Conn) (*shadowsocksr.SSTCPConn, error) {
+	var query = u.Query()
+	encryptMethod := query.Get("encrypt-method")
+	encryptKey := query.Get("encrypt-key")
+	cipher, err := SSR.NewStreamCipher(encryptMethod, encryptKey)
+	if err != nil {
+		return nil, err
+	}
+	ssconn := SSR.NewSSTCPConn(conn, cipher)
+	// should initialize obfs/protocol now
+	addr_s := u.Host
+	rs := strings.Split(addr_s, ":")
+	port, _ := strconv.Atoi(rs[1])
+	ssconn.IObfs = obfs.NewObfs(query.Get("obfs"))
+	obfsServerInfo := &ssr.ServerInfoForObfs{
+		Host:   rs[0],
+		Port:   uint16(port),
+		TcpMss: 1460,
+		Param:  query.Get("obfs-param"),
+	}
+	ssconn.IObfs.SetServerInfo(obfsServerInfo)
+	ssconn.IProtocol = protocol.NewProtocol(query.Get("protocol"))
+	protocolServerInfo := &ssr.ServerInfoForObfs{
+		Host:   rs[0],
+		Port:   uint16(port),
+		TcpMss: 1460,
+		Param:  query.Get("protocol-param"),
+	}
+	ssconn.IProtocol.SetServerInfo(protocolServerInfo)
+
+	return ssconn, nil
 }
